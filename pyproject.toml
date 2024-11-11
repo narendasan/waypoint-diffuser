@@ -7,3 +7,208 @@ requires-python = ">=3.10"
 dependencies = [
     "gym-pusht>=0.1.5",
 ]
+
+[project.urls]
+Homepage = "https://github.com/narendasan/waypoint-diffusion"
+Documentation = "https://github.com/narendasan/waypoint-diffusion"
+Repository = "https://github.com/narendasan/waypoint-diffusion.git"
+
+[tool.uv]
+dev-dependencies = [
+    "pre-commit>=2.20.0",
+    "black>=22.6.0",
+    "typos",
+    "mypy",
+    "isort",
+    "ruff",
+    "pytest",
+    "pytest-xdist",
+    "parameterized>=0.2.0",
+    "expecttest==0.1.6",
+]
+
+prerelease = "if-necessary-or-explicit"
+index-strategy = "unsafe-best-match"
+
+[tool.ruff]
+# NOTE: Synchoronize the ignores with .flake8
+lint.ignore = [
+    # these ignores are from flake8-bugbear; please fix!
+    "B007",
+    "B008",
+    "B017",
+    "B018",   # Useless expression
+    "B019",
+    "B020",
+    "B023",
+    "B024",
+    "B026",
+    "B028",   # No explicit `stacklevel` keyword argument found
+    "B904",
+    "B905",
+    "E402",
+    "C408",   # C408 ignored because we like the dict keyword argument syntax
+    "E501",   # E501 is not flexible enough, we're using B950 instead
+    "E721",
+    "E731",   # Assign lambda expression
+    "E741",
+    "EXE001",
+    "F405",
+    "F821",
+    "F841",
+    # these ignores are from flake8-logging-format; please fix!
+    "G101",
+    "G201",
+    "G202",
+    "G003",
+    "G004",
+    # these ignores are from RUFF perf; please fix!
+    "PERF203",
+    "PERF4",
+    "SIM102",
+    "SIM103",
+    "SIM112",  # flake8-simplify code styles
+    "SIM105",  # these ignores are from flake8-simplify. please fix or ignore with commented reason
+    "SIM108",
+    "SIM110",
+    "SIM114",  # Combine `if` branches using logical `or` operator
+    "SIM115",
+    "SIM116",  # Disable Use a dictionary instead of consecutive `if` statements
+    "SIM117",
+    "SIM118",
+]
+#line-length = 120
+lint.select = [
+    "B",
+    "C4",
+    "G",
+    "E",
+    "F",
+    "SIM1",
+    "W",
+    # Not included in flake8
+    "PERF",
+    "PLE",
+    "TRY302",
+]
+
+# Allow unused variables when underscore-prefixed.
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+lint.fixable = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "I",
+    "N",
+    "Q",
+    "S",
+    "T",
+    "W",
+    "ANN",
+    "ARG",
+    "BLE",
+    "COM",
+    "DJ",
+    "DTZ",
+    "EM",
+    "ERA",
+    "EXE",
+    "FBT",
+    "ICN",
+    "INP",
+    "ISC",
+    "NPY",
+    "PD",
+    "PGH",
+    "PIE",
+    "PL",
+    "PT",
+    "PTH",
+    "PYI",
+    "RET",
+    "RSE",
+    "RUF",
+    "SIM",
+    "SLF",
+    "TCH",
+    "TID",
+    "TRY",
+    "UP",
+    "YTT",
+]
+lint.unfixable = []
+target-version = "py312"
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "env",
+    "py/torch_tensorrt/fx",
+    ".github",
+    "examples",
+    "tests",
+    "tools",
+    "docs",
+    "docsrc",
+    "tests",
+    "setup.py",
+    "noxfile.py",
+    "__init__.py",
+]
+
+[tool.ruff.lint.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
+
+[tool.isort]
+profile = "black"
+py_version = 312
+
+[tool.black]
+#line-length = 120
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+show_error_codes = true
+disable_error_code = "attr-defined"
+no_implicit_optional = true
+python_version = "3.12"
+follow_imports = "skip"
+
+[tool.typos.default]
+extend-ignore-identifiers-re = [
+    "^([A-z]|[a-z])*Nd*",
+    "^([A-z]|[a-z])*nd*",
+    "activ*([A-z]|[a-z]|[0-9])*,",
+]
+
+[tool.typos.default.extend-words]
+arange = "arange"
