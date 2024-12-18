@@ -253,4 +253,4 @@ if __name__ == '__main__':
     model = NormalDiffusion(dataset_path)
     model.to_device('cpu')
     model.train()
-    torch.save(model.ema_noise_pred_net.parameters(), 'normal_diffusion.pt')
+    torch.save(model.ema_noise_pred_net.state_dict(), 'normal_diffusion.ckpt')
