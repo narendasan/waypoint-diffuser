@@ -496,7 +496,12 @@ class GoalConditionedDiffusion():
 
 if __name__ == '__main__':
     dataset_path = 'data/pusht_cchi_v7_replay.zarr.zip'
-    model = NormalDiffusion(dataset_path)
+    # model = NormalDiffusion(dataset_path)
+    # model.to_device('cpu')
+    # model.train()
+    # torch.save(model.ema_noise_pred_net.state_dict(), 'normal_diffusion.ckpt')
+
+    model = GoalConditionedDiffusion(dataset_path)
     model.to_device('cpu')
     model.train()
-    torch.save(model.ema_noise_pred_net.state_dict(), 'normal_diffusion.ckpt')
+    torch.save(model.ema_noise_pred_net.state_dict(), 'goal_conditioned_diffusion.ckpt')
