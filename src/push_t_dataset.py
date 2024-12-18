@@ -172,6 +172,8 @@ class PushTStateDataset(torch.utils.data.Dataset):
             sample_end_idx=sample_end_idx
         )
 
+        # use last observation as goal
+        nsample['goal'] = nsample['obs'][-1,:]
         # discard unused observations
         nsample['obs'] = nsample['obs'][:self.obs_horizon,:]
         return nsample
