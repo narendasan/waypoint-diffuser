@@ -25,7 +25,7 @@ class WaypointUtil():
         self.goal_dim = self.dataset[0]['goal'].shape[-1]
 
         # create waypoint network
-        self.waypoint_net = WaypointMLP(self.start_dim, self.goal_dim, 8, 3)
+        self.waypoint_net = WaypointMLP(self.start_dim, self.goal_dim, 256, 3)
 
     def to_device(self, device):
         self.device = torch.device(device)
