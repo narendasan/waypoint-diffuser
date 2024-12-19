@@ -263,15 +263,17 @@ class GoalConditionedDiffusion():
         # print data stats
         print("obs.shape:", self.dataset[0]['obs'].shape)
         print("action.shape", self.dataset[0]['action'].shape)
+        print("goal.shape", self.dataset[0]['goal'].shape)
         # save data stats
         self.obs_dim = self.dataset[0]['obs'].shape[-1]
         self.action_dim = self.dataset[0]['action'].shape[-1]
+        self.goal_dim = self.dataset[0]['goal'].shape[-1]
 
         # create network
         # conditioned on past obs and an additional goal obs state
         self.noise_pred_net = ConditionalUnet1D(
             input_dim=self.action_dim,
-            global_cond_dim=self.obs_dim * obs_horizon + self.obs_dim
+            global_cond_dim=self.obs_dim * obs_horizon + self.goal_dim
         )
 
         # create diffusion scheduler
@@ -342,11 +344,11 @@ class GoalConditionedDiffusion():
                         obs_cond = obs_cond.flatten(start_dim=1)
 
                         # goal as FiLM conditioning
-                        # (B, obs_dim)
+                        # (B, goal_dim)
                         ngoal = nbatch['goal'].to(self.device)
 
                         # combine FiLM conditioning
-                        # (B, obs_horizon * obs_dim + obs_dim)
+                        # (B, obs_horizon * obs_dim + goal_dim)
                         combined_cond = torch.cat([obs_cond, ngoal], axis=-1)
 
                         # sample noise to add to actions
