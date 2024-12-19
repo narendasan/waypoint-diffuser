@@ -173,7 +173,7 @@ class PushTStateDataset(torch.utils.data.Dataset):
         )
 
         # use first observation as start
-        nsample['start'] = nsample['obs'][0,2:]
+        nsample['start'] = nsample['obs'][0,:]
         # use last observation as goal
         nsample['goal'] = nsample['obs'][-1,2:]
         # discard unused observations

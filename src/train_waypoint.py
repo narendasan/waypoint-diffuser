@@ -7,12 +7,14 @@ from push_t_dataset import PushTStateDataset, normalize_data, unnormalize_data
 
 class WaypointUtil():
     def __init__(self, dataset_path,
-                 pred_horizon=16, batch_size=256):
+                 pred_horizon=16, batch_size=256,
+                 include_agent=True):
         # parameters
         self.pred_horizon = pred_horizon
         self.batch_size = batch_size
 
         # dataset and dataloader
+        self.dataset_path = dataset_path
         self.dataset = PushTStateDataset(dataset_path, pred_horizon, 0, 0)
         self.train_set, self.val_set, self.test_set = torch.utils.data.random_split(
             self.dataset, [0.8, 0.1, 0.1])
@@ -25,7 +27,11 @@ class WaypointUtil():
         self.goal_dim = self.dataset[0]['goal'].shape[-1]
 
         # create waypoint network
-        self.waypoint_net = WaypointMLP(self.start_dim, self.goal_dim, 256, 3)
+        self.include_agent = include_agent
+        if include_agent:
+            self.waypoint_net = WaypointMLP(self.start_dim, self.goal_dim, 256, 3)
+        else:
+            self.waypoint_net = WaypointMLP(self.goal_dim, self.goal_dim, 256, 3)
 
     def to_device(self, device):
         self.device = torch.device(device)
@@ -82,7 +88,10 @@ class WaypointUtil():
 
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    torch.save(self.waypoint_net.state_dict(), './checkpoint/waypoint_net.ckpt')
+                    if self.include_agent:
+                        torch.save(self.waypoint_net.state_dict(), './checkpoint/waypoint_net_with_agent.ckpt')
+                    else:
+                        torch.save(self.waypoint_net.state_dict(), './checkpoint/waypoint_net_no_agent.ckpt')
 
     def load_pretrain(self, ckpt_path):
         state_dict = torch.load(ckpt_path, map_location=self.device, weights_only=True)
@@ -105,6 +114,10 @@ class WaypointUtil():
 
 if __name__ == "__main__":
     dataset_path = 'data/pusht_cchi_v7_replay.zarr.zip'
-    waypoint_util = WaypointUtil(dataset_path)
+    # waypoint_util = WaypointUtil(dataset_path, include_agent=False)
+    # waypoint_util.to_device('cpu')
+    # waypoint_util.train(num_epochs=500)
+
+    waypoint_util = WaypointUtil(dataset_path, include_agent=True)
     waypoint_util.to_device('cpu')
     waypoint_util.train(num_epochs=500)

@@ -11,7 +11,7 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 
 from diffusion_network import ConditionalUnet1D
 from push_t_dataset import PushTStateDataset, normalize_data, unnormalize_data
-
+from train_waypoint import WaypointUtil
 
 class NormalDiffusion():
     def __init__(self, dataset_path,
@@ -25,6 +25,7 @@ class NormalDiffusion():
         self.num_diffusion_iters = num_diffusion_iters
 
         # dataset and data loader
+        self.dataset_path = dataset_path
         self.dataset = PushTStateDataset(dataset_path, pred_horizon, obs_horizon, action_horizon)
 
         # print data stats
@@ -156,19 +157,27 @@ class NormalDiffusion():
         self.ema_noise_pred_net = self.noise_pred_net
         self.ema_noise_pred_net.load_state_dict(state_dict)
 
-    def eval(self):
+    def eval(self, start_state=None):
         # limit enviornment interaction to 200 steps before termination
         max_steps = 200
-        env = gym.make("gym_pusht/PushT-v0")
+        env = gym.make("gym_pusht/PushT-v0", render_mode='rgb_array')
+        env = env.unwrapped
 
         # get first observation
         obs, info = env.reset()
+
+        if start_state is not None:
+            obs = start_state
+            env._set_state(start_state)
+            env.agent.position = list(start_state[:2])
+            env.block.position = list(start_state[2:4])
+            env.block.angle = start_state[4]
 
         # keep a queue of last 2 steps of observations
         obs_deque = collections.deque(
             [obs] * self.obs_horizon, maxlen=self.obs_horizon)
         # save visualization and rewards
-        imgs = [env.render(mode='rgb_array')]
+        imgs = [env.render()]
         rewards = list()
         done = False
         step_idx = 0
@@ -232,7 +241,7 @@ class NormalDiffusion():
                     obs_deque.append(obs)
                     # and reward/vis
                     rewards.append(reward)
-                    imgs.append(env.render(mode='rgb_array'))
+                    imgs.append(env.render())
 
                     # update progress bar
                     step_idx += 1
@@ -246,6 +255,8 @@ class NormalDiffusion():
         # print out the maximum target coverage
         print(f'Score: {max(rewards)}; Total steps: {step_idx}')
 
+        return imgs, rewards, step_idx
+
 class GoalConditionedDiffusion():
     def __init__(self, dataset_path,
                  pred_horizon=16, obs_horizon=2,
@@ -258,6 +269,7 @@ class GoalConditionedDiffusion():
         self.num_diffusion_iters = num_diffusion_iters
 
         # dataset and data loader
+        self.dataset_path = dataset_path
         self.dataset = PushTStateDataset(dataset_path, pred_horizon, obs_horizon, pred_horizon)
 
         # print data stats
@@ -400,21 +412,31 @@ class GoalConditionedDiffusion():
         self.ema_noise_pred_net = self.noise_pred_net
         self.ema_noise_pred_net.load_state_dict(state_dict)
 
-    def eval(self):
-        # TODO add waypoint network to generate goal states
-        pass
+    def eval(self, start_state=None):
+        # load waypoint network
+        waypoint_util = WaypointUtil(self.dataset_path, include_agent=True)
+        waypoint_util.to_device('cpu')
+        waypoint_util.load_pretrain('checkpoint/waypoint_net_with_agent.ckpt')
+
         # limit enviornment interaction to 200 steps before termination
         max_steps = 200
-        env = gym.make("gym_pusht/PushT-v0")
+        env = gym.make("gym_pusht/PushT-v0", render_mode='rgb_array')
+        env = env.unwrapped
 
         # get first observation
         obs, info = env.reset()
+        if start_state is not None:
+            obs = start_state
+            env._set_state(start_state)
+            env.agent.position = list(start_state[:2])
+            env.block.position = list(start_state[2:4])
+            env.block.angle = start_state[4]
 
         # keep a queue of last 2 steps of observations
         obs_deque = collections.deque(
             [obs] * self.obs_horizon, maxlen=self.obs_horizon)
         # save visualization and rewards
-        imgs = [env.render(mode='rgb_array')]
+        imgs = [env.render()]
         rewards = list()
         done = False
         step_idx = 0
@@ -433,6 +455,15 @@ class GoalConditionedDiffusion():
                 with torch.no_grad():
                     # reshape observation to (B,obs_horizon*obs_dim)
                     obs_cond = nobs.unsqueeze(0).flatten(start_dim=1)
+                    start_obs = nobs[-1,:]
+
+                    with torch.no_grad():
+                        waypoint_util.waypoint_net.eval()
+                        # get goal from waypoint network
+                        goal = waypoint_util.waypoint_net(start_obs)
+                        goal = goal.reshape(1, -1)
+
+                    combined_cond = torch.cat([obs_cond, goal], axis=-1)
 
                     # initialize action from Guassian noise
                     noisy_action = torch.randn(
@@ -447,7 +478,7 @@ class GoalConditionedDiffusion():
                         noise_pred = self.ema_noise_pred_net(
                             sample=naction,
                             timestep=k,
-                            global_cond=obs_cond
+                            global_cond=combined_cond
                         )
 
                         # inverse diffusion step (remove noise)
@@ -478,7 +509,7 @@ class GoalConditionedDiffusion():
                     obs_deque.append(obs)
                     # and reward/vis
                     rewards.append(reward)
-                    imgs.append(env.render(mode='rgb_array'))
+                    imgs.append(env.render())
 
                     # update progress bar
                     step_idx += 1
@@ -491,6 +522,8 @@ class GoalConditionedDiffusion():
 
         # print out the maximum target coverage
         print(f'Score: {max(rewards)}; Total steps: {step_idx}')
+
+        return imgs, rewards, step_idx
 
 if __name__ == '__main__':
     dataset_path = 'data/pusht_cchi_v7_replay.zarr.zip'
