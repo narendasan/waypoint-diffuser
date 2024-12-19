@@ -121,7 +121,7 @@ class PushTStateDataset(torch.utils.data.Dataset):
             # (N, action_dim)
             'action': dataset_root['data']['action'][:],
             # (N, obs_dim)
-            'obs': dataset_root['data']['state'][:]
+            'obs': dataset_root['data']['state'][:],
         }
         # Marks one-past the last index for each episode
         episode_ends = dataset_root['meta']['episode_ends'][:]
@@ -172,8 +172,10 @@ class PushTStateDataset(torch.utils.data.Dataset):
             sample_end_idx=sample_end_idx
         )
 
+        # use first observation as start
+        nsample['start'] = nsample['obs'][0,2:]
         # use last observation as goal
-        nsample['goal'] = nsample['obs'][-1,:]
+        nsample['goal'] = nsample['obs'][-1,2:]
         # discard unused observations
         nsample['obs'] = nsample['obs'][:self.obs_horizon,:]
         return nsample
@@ -181,7 +183,7 @@ class PushTStateDataset(torch.utils.data.Dataset):
 def replay(datapath):
     env = gym.make("gym_pusht/PushT-v0", render_mode="human")
     env = env.unwrapped
-    observation, info = env.reset()
+    obs, info = env.reset()
 
     dataset_root = zarr.open(datapath, mode='r')
     actions = dataset_root['data']['action']
@@ -207,11 +209,11 @@ def replay(datapath):
         env.block.angle = start_state[4]
 
         for action in action_sequence:
-            observation, reward, terminated, truncated, info = env.step(action)
+            obs, reward, terminated, truncated, info = env.step(action)
             image = env.render()
 
             if terminated or truncated:
-                observation, info = env.reset()
+                obs, info = env.reset()
 
     env.close()
 

@@ -26,23 +26,13 @@ class NormalDiffusion():
 
         # dataset and data loader
         self.dataset = PushTStateDataset(dataset_path, pred_horizon, obs_horizon, action_horizon)
-        self.dataloader = torch.utils.data.DataLoader(
-            self.dataset,
-            batch_size=batch_size,
-            num_workers=1,
-            shuffle=True,
-            # accelerate cpu-gpu transfer
-            pin_memory=True,
-            # don't kill worker process after each epoch
-            persistent_workers=True)
 
         # print data stats
-        batch = next(iter(self.dataloader))
-        print("batch['obs'].shape:", batch['obs'].shape)
-        print("batch['action'].shape", batch['action'].shape)
+        print("obs.shape:", self.dataset[0]['obs'].shape)
+        print("action.shape", self.dataset[0]['action'].shape)
         # save data stats
-        self.obs_dim = batch['obs'].shape[-1]
-        self.action_dim = batch['action'].shape[-1]
+        self.obs_dim = self.dataset[0]['obs'].shape[-1]
+        self.action_dim = self.dataset[0]['action'].shape[-1]
 
         # create network
         self.noise_pred_net = ConditionalUnet1D(
@@ -67,6 +57,16 @@ class NormalDiffusion():
         _ = self.noise_pred_net.to(self.device)
 
     def train(self, num_epochs=100):
+        dataloader = torch.utils.data.DataLoader(
+            self.dataset,
+            batch_size=self.batch_size,
+            num_workers=1,
+            shuffle=True,
+            # accelerate cpu-gpu transfer
+            pin_memory=True,
+            # don't kill worker process after each epoch
+            persistent_workers=True)
+
         # Exponential Moving Average
         # accelerates training and improves stability
         # holds a copy of the model weights
@@ -85,7 +85,7 @@ class NormalDiffusion():
             name='cosine',
             optimizer=optimizer,
             num_warmup_steps=500,
-            num_training_steps=len(self.dataloader) * num_epochs
+            num_training_steps=len(dataloader) * num_epochs
         )
 
         with tqdm(range(num_epochs), desc='Epoch') as tglobal:
@@ -93,7 +93,7 @@ class NormalDiffusion():
             for epoch_idx in tglobal:
                 epoch_loss = []
                 # batch loop
-                with tqdm(self.dataloader, desc='Batch', leave=False) as tepoch:
+                with tqdm(dataloader, desc='Batch', leave=False) as tepoch:
                     for nbatch in tepoch:
                         # data normalized in dataset
                         # device transfer
@@ -151,8 +151,8 @@ class NormalDiffusion():
         ema.copy_to(self.ema_noise_pred_net.parameters())
 
 
-    def load_pretrain(self, pt_path):
-        state_dict = torch.load(pt_path, map_location=self.device)
+    def load_pretrain(self, ckpt_path):
+        state_dict = torch.load(ckpt_path, map_location=self.device, weights_only=True)
         self.ema_noise_pred_net = self.noise_pred_net
         self.ema_noise_pred_net.load_state_dict(state_dict)
 
@@ -160,8 +160,6 @@ class NormalDiffusion():
         # limit enviornment interaction to 200 steps before termination
         max_steps = 200
         env = gym.make("gym_pusht/PushT-v0")
-        # use a seed >200 to avoid initial states seen in the training dataset
-        env.seed(100000)
 
         # get first observation
         obs, info = env.reset()
@@ -261,23 +259,13 @@ class GoalConditionedDiffusion():
 
         # dataset and data loader
         self.dataset = PushTStateDataset(dataset_path, pred_horizon, obs_horizon, pred_horizon)
-        self.dataloader = torch.utils.data.DataLoader(
-            self.dataset,
-            batch_size=batch_size,
-            num_workers=1,
-            shuffle=True,
-            # accelerate cpu-gpu transfer
-            pin_memory=True,
-            # don't kill worker process after each epoch
-            persistent_workers=True)
 
         # print data stats
-        batch = next(iter(self.dataloader))
-        print("batch['obs'].shape:", batch['obs'].shape)
-        print("batch['action'].shape", batch['action'].shape)
+        print("obs.shape:", self.dataset[0]['obs'].shape)
+        print("action.shape", self.dataset[0]['action'].shape)
         # save data stats
-        self.obs_dim = batch['obs'].shape[-1]
-        self.action_dim = batch['action'].shape[-1]
+        self.obs_dim = self.dataset[0]['obs'].shape[-1]
+        self.action_dim = self.dataset[0]['action'].shape[-1]
 
         # create network
         # conditioned on past obs and an additional goal obs state
@@ -303,6 +291,16 @@ class GoalConditionedDiffusion():
         _ = self.noise_pred_net.to(self.device)
 
     def train(self, num_epochs=100):
+        dataloader = torch.utils.data.DataLoader(
+            self.dataset,
+            batch_size=self.batch_size,
+            num_workers=1,
+            shuffle=True,
+            # accelerate cpu-gpu transfer
+            pin_memory=True,
+            # don't kill worker process after each epoch
+            persistent_workers=True)
+
         # Exponential Moving Average
         # accelerates training and improves stability
         # holds a copy of the model weights
@@ -321,7 +319,7 @@ class GoalConditionedDiffusion():
             name='cosine',
             optimizer=optimizer,
             num_warmup_steps=500,
-            num_training_steps=len(self.dataloader) * num_epochs
+            num_training_steps=len(dataloader) * num_epochs
         )
 
         with tqdm(range(num_epochs), desc='Epoch') as tglobal:
@@ -329,7 +327,7 @@ class GoalConditionedDiffusion():
             for epoch_idx in tglobal:
                 epoch_loss = []
                 # batch loop
-                with tqdm(self.dataloader, desc='Batch', leave=False) as tepoch:
+                with tqdm(dataloader, desc='Batch', leave=False) as tepoch:
                     for nbatch in tepoch:
                         # data normalized in dataset
                         # device transfer
@@ -395,8 +393,8 @@ class GoalConditionedDiffusion():
         ema.copy_to(self.ema_noise_pred_net.parameters())
 
 
-    def load_pretrain(self, pt_path):
-        state_dict = torch.load(pt_path, map_location=self.device)
+    def load_pretrain(self, ckpt_path):
+        state_dict = torch.load(ckpt_path, map_location=self.device, weights_only=True)
         self.ema_noise_pred_net = self.noise_pred_net
         self.ema_noise_pred_net.load_state_dict(state_dict)
 
@@ -406,8 +404,6 @@ class GoalConditionedDiffusion():
         # limit enviornment interaction to 200 steps before termination
         max_steps = 200
         env = gym.make("gym_pusht/PushT-v0")
-        # use a seed >200 to avoid initial states seen in the training dataset
-        env.seed(100000)
 
         # get first observation
         obs, info = env.reset()
@@ -499,9 +495,9 @@ if __name__ == '__main__':
     # model = NormalDiffusion(dataset_path)
     # model.to_device('cpu')
     # model.train()
-    # torch.save(model.ema_noise_pred_net.state_dict(), 'normal_diffusion.ckpt')
+    # torch.save(model.ema_noise_pred_net.state_dict(), './checkpoint/normal_diffusion.ckpt')
 
     model = GoalConditionedDiffusion(dataset_path)
     model.to_device('cpu')
     model.train()
-    torch.save(model.ema_noise_pred_net.state_dict(), 'goal_conditioned_diffusion.ckpt')
+    torch.save(model.ema_noise_pred_net.state_dict(), './checkpoint/goal_conditioned_diffusion.ckpt')
